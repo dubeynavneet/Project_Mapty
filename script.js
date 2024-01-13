@@ -5,6 +5,7 @@
 class Workout {
     date = new Date();
     id = (Date.now() + '').slice(-10);
+    clicks = 0;
     constructor(coords, distance, duration) {
         this.coords = coords;
         this.distance = distance;   //in km
@@ -13,8 +14,12 @@ class Workout {
 
     _setDescription() {
         const months = ['January', 'February', 'March', 'April', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        this.decsription = `${this.type[0].toUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} 
-        ${this.date.getDate()}`;                        // Running on April 14
+        this.decsription = `${this.type === 'running' ? '🏃‍♂️' : '🚴‍♀️'} ${this.type[0].toUpperCase()}${this.type.slice(1)} on ${months[this.date.getMonth()]} 
+        ${this.date.getDate()}`;                        // {emoji} 🚴‍♂️🏃‍♂️Running on April 14
+    }
+
+    click() {
+        this.clicks++;
     }
 }
 
@@ -69,12 +74,14 @@ const inputDuration = document.querySelector('.form__input--duration');
 // App class (how app works)
 class App {
     #map;
+    #mapZoomLevel = 13;
     #mapEvent;
     #workouts = [];
     constructor() {
         this._getPosition();
         form.addEventListener('submit', this._newWorkout.bind(this));
         inputType.addEventListener('change', this._toggleElevation);
+        containerWorkwouts.addEventListener('click',this._moveToPopup.bind(this));
     }
 
     _getPosition() {
@@ -98,7 +105,7 @@ class App {
 
         // LeafLet library
 
-        this.#map = L.map('map').setView(coords, 15);  // setView method accepts an array as well as 2nd argument of zoom level
+        this.#map = L.map('map').setView(coords, this.#mapZoomLevel);  // setView method accepts an array as well as 2nd argument of zoom level
 
         L.tileLayer('https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -113,6 +120,14 @@ class App {
         inputDistance.focus();
     }
 
+    _hideFrom(){
+        inputCadence.value = inputDistance.value = inputDuration.value = inputElevation.value = '';
+        form.style.display = 'none';
+        form.classList.add('hidden');
+        setTimeout(()=>{
+            form.style.display = 'grid';
+        },1000);
+    }
     _toggleElevation() {
         // closest is method which selects the parents not the children (inverse of querySelector)
         inputElevation.closest('.form__row').classList.toggle('form__row--hidden');
@@ -154,7 +169,7 @@ class App {
         this._addMarker(workout);
         this._renderWorkout(workout);
         // 6)clear the values
-        inputCadence.value = inputDistance.value = inputDuration.value = inputElevation.value = '';
+        
         console.log("Hi");
 
         console.log(this.#mapEvent);
@@ -223,6 +238,28 @@ class App {
             `
         }
         form.insertAdjacentHTML('afterend',html);
+        this._hideFrom();
+    }
+
+    _moveToPopup(e){
+        const workoutEl = e.target.closest('.workout')
+        // console.log(workoutEl);
+
+        if(!workoutEl) return;
+
+        const workout = this.#workouts.find(
+            work => work.id === workoutEl.dataset.id
+        );
+
+        this.#map.setView(workout.coords,this.#mapZoomLevel,{
+            animate: true,
+            pan: {
+                duration: 1,
+            },   
+        });
+
+        workout.click();
+        // console.log(workout.clicks);
     }
 }
 
